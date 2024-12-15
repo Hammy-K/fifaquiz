@@ -1,5 +1,191 @@
-<iframe height="450" style="width: 100%;" scrolling="no" title="Fifa Quiz" src="https://codepen.io/Hammy-K/embed/NWQVdqJ?default-tab=result" frameborder="no" loading="lazy" allowtransparency="true" allowfullscreen="true">
-  See the Pen <a href="https://codepen.io/Hammy-K/pen/NWQVdqJ">
-  Fifa Quiz</a> by Hammy K (<a href="https://codepen.io/Hammy-K">@Hammy-K</a>)
-  on <a href="https://codepen.io">CodePen</a>.
-</iframe>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FIFA World Cup Quiz</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: url('https://vid.alarabiya.net/images/2024/12/12/81d429c0-d98e-43f3-ac57-7481d18ed4fd/81d429c0-d98e-43f3-ac57-7481d18ed4fd_16x9_600x338.jpg') no-repeat center center fixed;
+            background-size: cover;
+            margin: 0;
+            padding: 0;
+            color: white;
+        }
+        .container {
+            display: inline-block;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.8);
+            border-radius: 15px;
+        }
+        h1 {
+            color: #FFD700;
+            text-shadow: 2px 2px 5px #000;
+        }
+        #question {
+            font-size: 1.3em;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            width: 80%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #FFD700;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+        button {
+            padding: 12px 20px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        #submitButton {
+            background-color: #28a745;
+        }
+        #nextButton {
+            background-color: #007BFF;
+        }
+        #response, #timer, #score {
+            margin-top: 20px;
+            font-size: 1.2em;
+        }
+        #score {
+            color: #FFD700;
+        }
+        #timer {
+            color: #FF6347;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>FIFA World Cup Trivia Quiz</h1>
+        <p id="score">Score: 0</p>
+        <p id="timer">Time left: 1:30</p>
+        <p id="question">Loading question...</p>
+        <div>
+            <label for="userAnswer">Your Answer:</label><br>
+            <input type="text" id="userAnswer" placeholder="Type your answer here" disabled>
+        </div>
+        <button onclick="checkAnswer()" id="submitButton" disabled>Submit Answer</button>
+        <button onclick="getNextQuestion()" id="nextButton" disabled>Next Question</button>
+        <div id="response"></div>
+    </div>
+
+    <script>
+        let currentQuestion = '';
+        let score = 0;
+        let timer;
+        let totalTime = 90; // Total time in seconds (2 minutes)
+
+        // Function to get a trivia question from the AI
+        async function getQuestion() {
+        const prompt = 'Provide a concise FIFA World Cup trivia question related to Saudi Arabia or the FIFA World Cup 2034. The question should not include any additional comments or encouragement.';
+            try {
+                const response = await fetch('https://sleepy-oasis-95492-5239a232e589.herokuapp.com/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt }),
+                });
+                const data = await response.json();
+                currentQuestion = data.reply;
+                document.getElementById('question').innerText = currentQuestion;
+                enableGame();
+            } catch (error) {
+                document.getElementById('question').innerText = 'An error occurred while fetching the question.';
+                console.error(error);
+            }
+        }
+
+        // Function to check the user's answer
+        async function checkAnswer() {
+            const userAnswer = document.getElementById('userAnswer').value.trim();
+            if (!userAnswer) {
+                document.getElementById('response').innerText = "Please enter an answer.";
+                return;
+            }
+
+            const prompt = `Question: ${currentQuestion}\nUser's Answer: ${userAnswer}\nProvide concise feedback based on these rules:
+                - If the answer is correct, reply: "Correct! + {a very short fact about the topic}"
+                - If the answer is wrong, reply: "Wrong answer :( + {the correct answer}"`;
+            try {
+                const response = await fetch('https://sleepy-oasis-95492-5239a232e589.herokuapp.com/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt }),
+                });
+                const data = await response.json();
+                document.getElementById('response').innerText = data.reply;
+
+                if (data.reply.toLowerCase().includes("correct")) {
+                    score++;
+                    document.getElementById('score').innerText = `Score: ${score}`;
+                }
+
+                // Disable the submit button after the first submission
+                document.getElementById('submitButton').disabled = true;
+
+            } catch (error) {
+                document.getElementById('response').innerText = "An error occurred while checking the answer.";
+                console.error(error);
+            }
+        }
+
+        // Timer function
+        function startTimer() {
+            timer = setInterval(() => {
+                totalTime--;
+                const minutes = Math.floor(totalTime / 60);
+                const seconds = totalTime % 60;
+                document.getElementById('timer').innerText = `Time left: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                if (totalTime <= 0) {
+                    clearInterval(timer);
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        // End the game when time runs out
+        function endGame() {
+            document.getElementById('response').innerText = "Game over! Thanks for playing.";
+            document.getElementById('userAnswer').disabled = true;
+            document.getElementById('submitButton').disabled = true;
+            document.getElementById('nextButton').disabled = true;
+            document.getElementById('timer').innerText = "Time left: 0:00";
+        }
+
+        // Function to enable game inputs and buttons
+        function enableGame() {
+            document.getElementById('userAnswer').disabled = false;
+            document.getElementById('submitButton').disabled = false;
+            document.getElementById('nextButton').disabled = false;
+            document.getElementById('response').innerText = '';
+            document.getElementById('userAnswer').value = '';
+        }
+
+        // Function to get the next question
+        function getNextQuestion() {
+            document.getElementById('response').innerText = '';
+            document.getElementById('userAnswer').value = '';
+            document.getElementById('submitButton').disabled = false;
+            getQuestion();
+        }
+
+        // Start the game on page load
+        window.onload = () => {
+            getQuestion();
+            startTimer();
+        };
+    </script>
+</body>
+</html>
